@@ -33,8 +33,9 @@ export class BattleScene extends Scene
         const cx = width / 2;
 
         // Background
-        this.add.rectangle(cx, height / 2, width, height, 0x080818);
-        this._drawBattleBackground(width, height);
+        const theme = this._getBattleTheme();
+        this.add.rectangle(cx, height / 2, width, height, theme.bg);
+        this._drawBattleBackground(width, height, theme);
 
         // Sprites
         this.playerGroup = this._createCharacterDisplay(220, 420, this.character, false);
@@ -44,12 +45,15 @@ export class BattleScene extends Scene
         this.playerHPBar = this._createHPBar(60, 520, this.playerHP, this.playerMaxHP, `${this.character.name}  Lv.${this.level}`, 0x22c55e);
         this.enemyHPBar  = this._createHPBar(540, 100, this.enemyCurrentHP, this.enemy.maxHp, this.enemy.name, 0xef4444);
 
-        // Battle log
-        this.battleLogBg = this.add.rectangle(cx, height - 100, width - 20, 90, 0x0d1b2a, 0.9).setStrokeStyle(1, 0x374151);
-        this.battleLog = this.add.text(20, height - 135, '', {
-            fontSize: '14px', color: '#d1d5db', fontFamily: 'Courier New',
+        // Battle log — sits above the action panel
+        this.battleLogBg = this.add.rectangle(cx, height - 205, width - 20, 50, 0x0d1b2a, 0.9).setStrokeStyle(1, 0x374151);
+        this.battleLog = this.add.text(20, height - 222, '', {
+            fontSize: '13px', color: '#d1d5db', fontFamily: 'Courier New',
             wordWrap: { width: width - 40 }
         });
+
+        // Action panel background
+        this.add.rectangle(cx, height - 90, width - 20, 150, 0x0d1b2a, 0.9).setStrokeStyle(1, 0x374151);
 
         // Menu
         this._buildActionMenu();
@@ -59,19 +63,28 @@ export class BattleScene extends Scene
         EventBus.emit('current-scene-ready', this);
     }
 
-    _drawBattleBackground (width, height) {
-        // Grid lines (arena floor)
+    _getBattleTheme () {
+        const themes = {
+            flemme_vendredi:        { bg: 0x080814, grid: 0x4b5563, accent: 0x6b7280, tint: 0x374151 },
+            netflix_endormant:      { bg: 0x120006, grid: 0x7f1d1d, accent: 0xe50914, tint: 0x450a0a },
+            retardataire_chronique: { bg: 0x0e0a00, grid: 0x78350f, accent: 0xb45309, tint: 0x3d2000 },
+        };
+        return themes[this.enemyId] || { bg: 0x080818, grid: 0x1f2937, accent: 0x374151, tint: 0x0a0a1a };
+    }
+
+    _drawBattleBackground (width, height, theme) {
+        // Tinted enemy-side overlay
+        this.add.rectangle(width / 2, 240, width, 480, theme.tint, 0.5);
+
+        // Grid lines tinted to enemy color
         const g = this.add.graphics();
-        g.lineStyle(1, 0x1f2937, 0.6);
-        for (let i = 0; i < width; i += 40) g.lineBetween(i, 0, i, height);
-        for (let j = 0; j < height; j += 40) g.lineBetween(0, j, width, j);
+        g.lineStyle(1, theme.grid, 0.4);
+        for (let i = 0; i < width; i += 40) g.lineBetween(i, 0, i, 480);
+        for (let j = 0; j < 480; j += 40) g.lineBetween(0, j, width, j);
 
-        // Divider
-        g.lineStyle(2, 0x374151);
+        // Divider in accent color
+        g.lineStyle(2, theme.accent, 0.9);
         g.lineBetween(0, 480, width, 480);
-
-        // Enemy side
-        this.add.rectangle(width / 2, 240, width, 480, 0x0a0a1a, 0.4);
     }
 
     _createCharacterDisplay (x, y, entity, isEnemy) {
@@ -116,6 +129,9 @@ export class BattleScene extends Scene
     _createHPBar (x, y, hp, maxHp, label, color) {
         const container = this.add.container(x, y);
 
+        const nameBgW = Math.min(label.length * 8 + 24, 300);
+        const nameBg = this.add.rectangle(nameBgW / 2 - 4, 8, nameBgW, 22, 0x000000, 0.75);
+
         const nameTxt = this.add.text(0, 0, label, {
             fontSize: '13px', color: '#e5e7eb', fontFamily: 'Courier New'
         });
@@ -128,7 +144,7 @@ export class BattleScene extends Scene
             Math.max(2, (hp / maxHp) * 180), 10, color
         );
 
-        container.add([nameTxt, hpTxt, trackBg, fill]);
+        container.add([nameBg, nameTxt, hpTxt, trackBg, fill]);
         container._hpTxt = hpTxt;
         container._fill = fill;
         container._maxHp = maxHp;
@@ -163,7 +179,7 @@ export class BattleScene extends Scene
             const col = i % 2;
             const row = Math.floor(i / 2);
             const bx = 20 + col * 220;
-            const by = height - 78 + row * 28;
+            const by = height - 155 + row * 34;
 
             const btn = this.add.text(bx, by, action.label, {
                 fontSize: '13px', color: '#e5e7eb', fontFamily: 'Courier New',

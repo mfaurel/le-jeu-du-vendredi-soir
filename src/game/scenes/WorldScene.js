@@ -11,7 +11,7 @@ const TILE_H  = 32;
 const COLS    = 16;
 const ROWS    = 12;
 const ORIGIN_X = 424;
-const ORIGIN_Y = 110;
+const ORIGIN_Y = 200;
 
 function isoToScreen(col, row) {
     return {
@@ -21,18 +21,20 @@ function isoToScreen(col, row) {
 }
 
 // 1=wall, 2=forest, 3=dungeon, 4=taverne, 5=start, 6=finish
+// Path goes left→right on screen: alternating col++ and row-- produces horizontal iso movement.
+// Staircase: (0,10)→(1,10)→(1,9)→(2,9)→...→(9,1)→(10,1)→(10,0)→(11,0)→(12,0)→(13,0)→(14,0)
 const MAP = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,5,2,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,2,2,2,2,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,2,2,2,2,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,2,3,3,3,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,3,3,3,3,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,3,3,3,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,3,4,4,4,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,4,4,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,4,6,1],
+    [1,1,1,1,1,1,1,1,1,1,4,4,4,4,6,1],
+    [1,1,1,1,1,1,1,1,1,3,4,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,3,3,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,3,3,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,3,3,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,3,3,1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,2,2,1,1,1,1,1,1,1,1,1,1],
+    [1,1,1,2,2,1,1,1,1,1,1,1,1,1,1,1],
+    [1,1,2,2,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [5,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
 ];
 
@@ -184,7 +186,7 @@ export class WorldScene extends Scene {
         }
 
         // Start tile pulse glow
-        const { x: sx, y: sy } = isoToScreen(1, 1);
+        const { x: sx, y: sy } = isoToScreen(0, 10);
         const startGlow = this.add.circle(sx, sy + TILE_H / 2, 24, 0x00ff88, 0.18);
         this.tweens.add({ targets: startGlow, alpha: 0.06, scaleX: 1.4, scaleY: 1.4, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
@@ -196,7 +198,7 @@ export class WorldScene extends Scene {
     }
 
     _buildPortal() {
-        const { x: fx, y: fy } = isoToScreen(14, 10);
+        const { x: fx, y: fy } = isoToScreen(14, 0);
         const cy = fy + TILE_H / 2;
 
         // Pulsing rings
@@ -384,11 +386,11 @@ export class WorldScene extends Scene {
             const label = this.add.text(x, y - 42, enemy.name, {
                 fontSize: '9px', color: '#ff6b6b', fontFamily: 'Courier New',
                 stroke: '#000', strokeThickness: 2
-            }).setOrigin(0.5).setDepth(y + 1);
+            }).setOrigin(0.5).setDepth(y + 1).setVisible(false);
 
-            // Bounce
+            // Bounce sprite only
             this.tweens.add({
-                targets: [g, label], y: `-=6`, duration: 700,
+                targets: g, y: `-=6`, duration: 700,
                 yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: i * 220
             });
 
@@ -409,7 +411,7 @@ export class WorldScene extends Scene {
             const label = this.add.text(x, y - 42, npc.name, {
                 fontSize: '9px', color: '#a8dadc', fontFamily: 'Courier New',
                 stroke: '#000', strokeThickness: 2
-            }).setOrigin(0.5).setDepth(y + 1);
+            }).setOrigin(0.5).setDepth(y + 1).setVisible(false);
 
             this.npcList.push({ npc, sprite: g, label, col: npc.position.col, row: npc.position.row });
         });
@@ -418,8 +420,8 @@ export class WorldScene extends Scene {
     // ── PLAYER ───────────────────────────────────────────────────────────
 
     _createPlayer() {
-        this.playerCol = 1;
-        this.playerRow = 1;
+        this.playerCol = 0;
+        this.playerRow = 10;
         const { x, y } = isoToScreen(this.playerCol, this.playerRow);
 
         this.playerSprite = this.add.graphics();
@@ -429,11 +431,7 @@ export class WorldScene extends Scene {
         // Shadow under player
         this.playerShadow = this.add.ellipse(x, y + TILE_H / 2 - 4, 28, 10, 0x000000, 0.25).setDepth(499);
 
-        // Arrow
-        this.playerArrow = this.add.text(x, y - 50, '▼', {
-            fontSize: '14px', color: '#ffd166', stroke: '#000', strokeThickness: 2
-        }).setOrigin(0.5).setDepth(501);
-        this.tweens.add({ targets: this.playerArrow, y: '+=7', duration: 480, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this._updateLabelVisibility();
     }
 
     _drawPlayerSprite(g) {
@@ -453,6 +451,18 @@ export class WorldScene extends Scene {
         g.clear();
         const palette = [0xffd166, tintColor, Math.floor(tintColor * 0.6), 0x0a1a0a];
         drawPixelSprite(g, NPC_SPRITE, palette, 2, -8 * 2, -16 * 2);
+    }
+
+    _updateLabelVisibility() {
+        const pc = this.playerCol, pr = this.playerRow;
+        for (const es of this.enemySprites) {
+            const dist = Math.abs(es.col - pc) + Math.abs(es.row - pr);
+            es.label.setVisible(dist <= 1);
+        }
+        for (const npc of this.npcList) {
+            const dist = Math.abs(npc.col - pc) + Math.abs(npc.row - pr);
+            npc.label.setVisible(dist <= 1);
+        }
     }
 
     // ── MOVEMENT HIGHLIGHTS ──────────────────────────────────────────────
@@ -547,15 +557,16 @@ export class WorldScene extends Scene {
         const { x, y } = isoToScreen(nc, nr);
 
         this.tweens.add({
-            targets: [this.playerSprite, this.playerArrow],
+            targets: this.playerSprite,
             x,
-            y: (t) => t === this.playerSprite ? y - 16 : y - 50,
+            y: y - 16,
             duration: 110,
             ease: 'Linear',
             onComplete: () => {
                 this.playerSprite.setDepth(y);
                 this.playerShadow.setPosition(x, y + TILE_H / 2 - 4);
                 this._updateMovementHighlights();
+                this._updateLabelVisibility();
                 this._checkTileInteraction();
             }
         });
