@@ -15,7 +15,7 @@ export const ENEMIES = [
         ],
         dialogBefore: 'Ce soir... j\'ai vraiment pas l\'énergie. Le canapé m\'appelle. Peut-être la semaine prochaine ?',
         dialogAfter: 'Bon... OK, j\'arrive dans 5 minutes. Mais je reste pas longtemps.',
-        position: { col: 3, row: 4 }
+        position: { col: 3, row: 2 }
     },
     {
         id: 'netflix_endormant',
@@ -33,7 +33,7 @@ export const ENEMIES = [
         ],
         dialogBefore: 'Mais attends... il reste juste un épisode. Je peux pas laisser ça en plan là !',
         dialogAfter: 'OK OK, j\'ai mis en pause. J\'arrive sur Discord maintenant.',
-        position: { col: 8, row: 3 }
+        position: { col: 6, row: 3 }
     },
     {
         id: 'retardataire_chronique',
@@ -51,6 +51,6 @@ export const ENEMIES = [
         ],
         dialogBefore: 'Ouais ouais, je suis presque prêt. Mon PC reboot juste. Et je mange. Et je cherche mon casque...',
         dialogAfter: 'Voilà, je suis là ! C\'était quoi le jeu déjà ?',
-        position: { col: 5, row: 7 }
+        position: { col: 11, row: 6 }
     }
 ];

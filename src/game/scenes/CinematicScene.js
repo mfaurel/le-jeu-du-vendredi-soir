@@ -234,11 +234,11 @@ export class CinematicScene extends Scene {
 
         // Messages dans le channel
         const messages = [
-            { delay: 500,  text: 'Kevin : Je suis là ! 🎮',           color: '#43b581' },
-            { delay: 1200, text: 'Thomas : Ouais, on joue quoi ?',     color: '#7289da' },
-            { delay: 2000, text: 'Romain : Bof... j\'suis crevé 😴',   color: '#faa61a' },
-            { delay: 2800, text: 'Clément : ...',                       color: '#8e9297' },
-            { delay: 3500, text: 'Alexis : (pas de réponse)',           color: '#4f545c', italic: true },
+            { delay: 500,  text: 'Deus : Je suis là ! 🎮',           color: '#43b581' },
+            { delay: 1200, text: 'Claude : Ouais, on joue quoi ?',     color: '#7289da' },
+            { delay: 2000, text: 'Fatmike : Bof... j\'suis crevé 😴',   color: '#faa61a' },
+            { delay: 2800, text: 'MKz : ...',                       color: '#8e9297' },
+            { delay: 3500, text: 'Tsunaze : (pas de réponse)',           color: '#4f545c', italic: true },
         ];
 
         messages.forEach(({ delay, text, color, italic }) => {

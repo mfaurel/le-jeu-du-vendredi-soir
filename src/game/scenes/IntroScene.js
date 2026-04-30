@@ -33,7 +33,7 @@ export class IntroScene extends Scene
         }).setOrigin(0.5).setAlpha(0);
 
         // Subtitle
-        const subtitle = this.add.text(cx, cy - 10, 'Survive à la soirée', {
+        const subtitle = this.add.text(cx, cy - 10, 'Pouvoir jouer à la soirée', {
             fontSize: '20px', color: '#a8dadc', fontFamily: 'Courier New'
         }).setOrigin(0.5).setAlpha(0);
 
