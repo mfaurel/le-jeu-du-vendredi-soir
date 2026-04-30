@@ -7,11 +7,11 @@ import { DialogSystem } from '../DialogSystem';
 import { drawPixelSprite, getPlayerSprite, getEnemySprite, NPC_SPRITE, NPC_PALETTE } from '../SpriteData';
 
 const TILE_W  = 64;
-const TILE_H  = 32;
+const TILE_H  = 42;
 const COLS    = 16;
 const ROWS    = 12;
 const ORIGIN_X = 424;
-const ORIGIN_Y = 200;
+const ORIGIN_Y = 140;
 
 function isoToScreen(col, row) {
     return {
@@ -51,7 +51,7 @@ const ZONE = {
 const WALL_TOP  = 0x2d3561;
 const WALL_LEFT = 0x1a1f40;
 const WALL_RIGHT= 0x0f1228;
-const WALL_H    = 28;
+const WALL_H    = 36;
 
 function tileZone(type) {
     if (type === 2) return ZONE.forest;
@@ -303,9 +303,11 @@ export class WorldScene extends Scene {
             g.fillRect(x - 3, y - 6, 6, 3);
             // Flame
             const flame = this.add.graphics().setDepth(y + 3);
-            flame.fillStyle(0xff8c00);
-            flame.fillTriangle(x - 5, y - 6, x + 5, y - 6, x, y - 20);
-            this.tweens.add({ targets: flame, scaleY: { from: 1, to: 0.7 }, scaleX: { from: 1, to: 1.3 }, duration: 120 + Math.random() * 100, yoyo: true, repeat: -1 });
+            flame.fillStyle(0xff6600, 0.85);
+            flame.fillEllipse(x, y - 11, 9, 14);
+            flame.fillStyle(0xffcc00, 0.9);
+            flame.fillEllipse(x, y - 14, 5, 8);
+            this.tweens.add({ targets: flame, scaleY: { from: 1, to: 0.75 }, scaleX: { from: 1, to: 1.25 }, duration: 120 + Math.random() * 100, yoyo: true, repeat: -1 });
             // Glow
             const glow = this.add.circle(x, y - 12, 20, 0xff6600, 0.08).setDepth(y + 1);
             this.tweens.add({ targets: glow, alpha: { from: 0.08, to: 0.18 }, duration: 200 + Math.random() * 150, yoyo: true, repeat: -1 });
@@ -383,7 +385,7 @@ export class WorldScene extends Scene {
             this._drawEnemySprite(g, enemy.id);
             g.setPosition(x, y - 16).setDepth(y);
 
-            const label = this.add.text(x, y - 42, enemy.name, {
+            const label = this.add.text(x, y - 70, enemy.name, {
                 fontSize: '9px', color: '#ff6b6b', fontFamily: 'Courier New',
                 stroke: '#000', strokeThickness: 2
             }).setOrigin(0.5).setDepth(y + 1).setVisible(false);
@@ -408,7 +410,7 @@ export class WorldScene extends Scene {
             this._drawNPCSprite(g, npc.color);
             g.setPosition(x, y - 16).setDepth(y);
 
-            const label = this.add.text(x, y - 42, npc.name, {
+            const label = this.add.text(x, y - 70, npc.name, {
                 fontSize: '9px', color: '#a8dadc', fontFamily: 'Courier New',
                 stroke: '#000', strokeThickness: 2
             }).setOrigin(0.5).setDepth(y + 1).setVisible(false);
@@ -420,8 +422,15 @@ export class WorldScene extends Scene {
     // ── PLAYER ───────────────────────────────────────────────────────────
 
     _createPlayer() {
-        this.playerCol = 0;
-        this.playerRow = 10;
+        const savedPos = this.registry.get('playerPos');
+        if (savedPos) {
+            this.playerCol = savedPos.col;
+            this.playerRow = savedPos.row;
+            this.registry.remove('playerPos');
+        } else {
+            this.playerCol = 0;
+            this.playerRow = 10;
+        }
         const { x, y } = isoToScreen(this.playerCol, this.playerRow);
 
         this.playerSprite = this.add.graphics();
@@ -429,7 +438,7 @@ export class WorldScene extends Scene {
         this.playerSprite.setPosition(x, y - 16).setDepth(500);
 
         // Shadow under player
-        this.playerShadow = this.add.ellipse(x, y + TILE_H / 2 - 4, 28, 10, 0x000000, 0.25).setDepth(499);
+        this.playerShadow = this.add.ellipse(x, y + TILE_H / 2 - 4, 36, 12, 0x000000, 0.25).setDepth(499);
 
         this._updateLabelVisibility();
     }
@@ -438,19 +447,19 @@ export class WorldScene extends Scene {
         g.clear();
         const { characterId } = PlayerState.get();
         const { data, palette } = getPlayerSprite(characterId || 'assidu');
-        drawPixelSprite(g, data, palette, 2, -8 * 2, -16 * 2);
+        drawPixelSprite(g, data, palette, 3, -8 * 3, -16 * 3);
     }
 
     _drawEnemySprite(g, enemyId) {
         g.clear();
         const { data, palette } = getEnemySprite(enemyId);
-        drawPixelSprite(g, data, palette, 2, -8 * 2, -16 * 2);
+        drawPixelSprite(g, data, palette, 3, -8 * 3, -16 * 3);
     }
 
     _drawNPCSprite(g, tintColor) {
         g.clear();
         const palette = [0xffd166, tintColor, Math.floor(tintColor * 0.6), 0x0a1a0a];
-        drawPixelSprite(g, NPC_SPRITE, palette, 2, -8 * 2, -16 * 2);
+        drawPixelSprite(g, NPC_SPRITE, palette, 3, -8 * 3, -16 * 3);
     }
 
     _updateLabelVisibility() {
@@ -583,7 +592,7 @@ export class WorldScene extends Scene {
                 this.dialog.show([{ speaker: 'Portail', text: `Il reste des obstacles sur le chemin ! Bats-les tous d'abord. (${PlayerState.defeatedCount()}/${ENEMIES.length})` }]);
                 return;
             }
-            this.time.delayedCall(400, () => this._showVictory());
+            this.time.delayedCall(400, () => this.scene.start('VictoryScene', { characterId: this.characterId }));
             return;
         }
 
@@ -623,6 +632,7 @@ export class WorldScene extends Scene {
     }
 
     _startBattle(enemy, spriteIndex) {
+        this.registry.set('playerPos', { col: this.playerCol, row: this.playerRow });
         const es = this.enemySprites[spriteIndex];
         es.sprite.destroy();
         es.label.destroy();
@@ -641,43 +651,6 @@ export class WorldScene extends Scene {
                 });
             }
         );
-    }
-
-    // ── VICTORY ──────────────────────────────────────────────────────────
-
-    _showVictory() {
-        const { width, height } = this.cameras.main;
-        const cx = width / 2, cy = height / 2;
-
-        this.add.rectangle(cx, cy, width, height, 0x080818, 0.88).setDepth(300);
-
-        this.add.text(cx, cy - 80, '🎮 LA SOIRÉE EST LANCÉE !', {
-            fontSize: '32px', color: '#ffd166', fontFamily: 'Courier New', stroke: '#f72585', strokeThickness: 3
-        }).setOrigin(0.5).setDepth(301);
-
-        this.add.text(cx, cy - 35, 'Tout le monde est connecté à 21h00 !', {
-            fontSize: '18px', color: '#ffffff', fontFamily: 'Courier New'
-        }).setOrigin(0.5).setDepth(301);
-
-        const ps = PlayerState.get();
-        this.add.text(cx, cy + 5, `Niveau final : ${ps.level}  •  XP total : ${ps.xp}`, {
-            fontSize: '14px', color: '#9ca3af', fontFamily: 'Courier New'
-        }).setOrigin(0.5).setDepth(301);
-
-        this.add.text(cx, cy + 32, 'Au programme ce soir :', {
-            fontSize: '13px', color: '#6b7280', fontFamily: 'Courier New'
-        }).setOrigin(0.5).setDepth(301);
-
-        this.add.text(cx, cy + 54, 'Fall Guys  •  Pummel Party  •  Golf With Your Friends', {
-            fontSize: '13px', color: '#4fc3f7', fontFamily: 'Courier New'
-        }).setOrigin(0.5).setDepth(301);
-
-        const btn = this.add.text(cx, cy + 100, '▶ REJOUER', {
-            fontSize: '20px', color: '#4fc3f7', fontFamily: 'Courier New'
-        }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setColor('#ffffff'));
-        btn.on('pointerout',  () => btn.setColor('#4fc3f7'));
-        btn.on('pointerdown', () => { PlayerState.reset(); this.scene.start('IntroScene'); });
     }
 
     // ── UPDATE ───────────────────────────────────────────────────────────

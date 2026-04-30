@@ -6,6 +6,7 @@ import { StarterScene } from './scenes/StarterScene';
 import { MainMenu } from './scenes/MainMenu';
 import { WorldScene } from './scenes/WorldScene';
 import { BattleScene } from './scenes/BattleScene';
+import { VictoryScene } from './scenes/VictoryScene';
 import { Game } from './scenes/Game';
 import { GameOver } from './scenes/GameOver';
 import { AUTO, Game as PhaserGame } from 'phaser';
@@ -25,6 +26,7 @@ const config = {
         MainMenu,
         WorldScene,
         BattleScene,
+        VictoryScene,
         Game,
         GameOver
     ]
