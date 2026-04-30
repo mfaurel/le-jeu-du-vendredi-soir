@@ -6,12 +6,12 @@ import { PlayerState } from '../PlayerState';
 import { DialogSystem } from '../DialogSystem';
 import { drawPixelSprite, getPlayerSprite, getEnemySprite, NPC_SPRITE, NPC_PALETTE } from '../SpriteData';
 
-const TILE_W  = 52;
-const TILE_H  = 26;
+const TILE_W  = 64;
+const TILE_H  = 32;
 const COLS    = 16;
 const ROWS    = 12;
-const ORIGIN_X = 512;
-const ORIGIN_Y = 108;
+const ORIGIN_X = 424;
+const ORIGIN_Y = 110;
 
 function isoToScreen(col, row) {
     return {
@@ -49,7 +49,7 @@ const ZONE = {
 const WALL_TOP  = 0x2d3561;
 const WALL_LEFT = 0x1a1f40;
 const WALL_RIGHT= 0x0f1228;
-const WALL_H    = 22;
+const WALL_H    = 28;
 
 function tileZone(type) {
     if (type === 2) return ZONE.forest;
