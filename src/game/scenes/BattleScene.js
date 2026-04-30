@@ -6,6 +6,9 @@ import { SKILLS, getTypeMultiplier } from '../SkillsData';
 import { PlayerState } from '../PlayerState';
 import { drawPixelSprite, getPlayerSprite, getEnemySprite } from '../SpriteData';
 
+const SPRITE_SCALE = 6;
+const SPRITE_H = 16 * SPRITE_SCALE; // 96px
+
 export class BattleScene extends Scene
 {
     constructor () { super('BattleScene'); }
@@ -32,32 +35,28 @@ export class BattleScene extends Scene
         const { width, height } = this.cameras.main;
         const cx = width / 2;
 
-        // Background
         const theme = this._getBattleTheme();
         this.add.rectangle(cx, height / 2, width, height, theme.bg);
         this._drawBattleBackground(width, height, theme);
 
-        // Sprites
-        this.playerGroup = this._createCharacterDisplay(220, 420, this.character, false);
-        this.enemyGroup  = this._createCharacterDisplay(780, 260, this.enemy, true);
+        // Sprites — bigger scale
+        this.playerGroup = this._createCharacterDisplay(220, 430, this.character, false);
+        this.enemyGroup  = this._createCharacterDisplay(780, 270, this.enemy, true);
 
-        // HP Bars
-        this.playerHPBar = this._createHPBar(60, 520, this.playerHP, this.playerMaxHP, `${this.character.name}  Lv.${this.level}`, 0x22c55e);
-        this.enemyHPBar  = this._createHPBar(540, 100, this.enemyCurrentHP, this.enemy.maxHp, this.enemy.name, 0xef4444);
+        // HP bars above each character's head
+        this.playerHPBar = this._createHPBar(220, 430 - SPRITE_H - 28, this.playerHP, this.playerMaxHP, `${this.character.name}  Lv.${this.level}`, 0x22c55e);
+        this.enemyHPBar  = this._createHPBar(780, 270 - SPRITE_H - 28, this.enemyCurrentHP, this.enemy.maxHp, this.enemy.name, 0xef4444);
 
-        // Battle log — sits above the action panel
+        // Battle log
         this.battleLogBg = this.add.rectangle(cx, height - 205, width - 20, 50, 0x0d1b2a, 0.9).setStrokeStyle(1, 0x374151);
         this.battleLog = this.add.text(20, height - 222, '', {
             fontSize: '13px', color: '#d1d5db', fontFamily: 'Courier New',
             wordWrap: { width: width - 40 }
         });
 
-        // Action panel background
         this.add.rectangle(cx, height - 90, width - 20, 150, 0x0d1b2a, 0.9).setStrokeStyle(1, 0x374151);
 
-        // Menu
         this._buildActionMenu();
-
         this._log(`💬 ${this.enemy.name}: "${this.enemy.dialogBefore.substring(0, 60)}..."`);
 
         EventBus.emit('current-scene-ready', this);
@@ -73,18 +72,154 @@ export class BattleScene extends Scene
     }
 
     _drawBattleBackground (width, height, theme) {
-        // Tinted enemy-side overlay
-        this.add.rectangle(width / 2, 240, width, 480, theme.tint, 0.5);
+        this.add.rectangle(width / 2, 240, width, 480, theme.tint, 0.35);
 
-        // Grid lines tinted to enemy color
         const g = this.add.graphics();
-        g.lineStyle(1, theme.grid, 0.4);
+        g.lineStyle(1, theme.grid, 0.3);
         for (let i = 0; i < width; i += 40) g.lineBetween(i, 0, i, 480);
         for (let j = 0; j < 480; j += 40) g.lineBetween(0, j, width, j);
 
-        // Divider in accent color
         g.lineStyle(2, theme.accent, 0.9);
         g.lineBetween(0, 480, width, 480);
+
+        if (this.enemyId === 'flemme_vendredi')        this._drawFlemmeBg(width);
+        else if (this.enemyId === 'netflix_endormant') this._drawNetflixBg(width);
+        else if (this.enemyId === 'retardataire_chronique') this._drawRetardBg(width);
+    }
+
+    // ── Flemme: floating Zzz's + dim sofa outline ──────────────────────────────
+    _drawFlemmeBg (width) {
+        // Faint couch silhouette behind enemy
+        const cg = this.add.graphics().setDepth(0).setAlpha(0.06);
+        cg.fillStyle(0x6b7280, 1);
+        cg.fillRoundedRect(550, 340, 320, 80, 16);
+        cg.fillRoundedRect(540, 280, 40, 120, 8);
+        cg.fillRoundedRect(830, 280, 40, 120, 8);
+        cg.fillRoundedRect(550, 280, 320, 30, 8);
+
+        const zPool = ['z', 'Z', 'z z', 'Z Z'];
+        const spawnZ = () => {
+            if (!this.scene.isActive('BattleScene')) return;
+            const x = PhaserMath.Between(480, width - 60);
+            const z = this.add.text(x, 370, zPool[PhaserMath.Between(0, zPool.length - 1)], {
+                fontSize: `${PhaserMath.Between(14, 26)}px`,
+                color: '#6b7280',
+                fontFamily: 'Courier New',
+            }).setDepth(2).setAlpha(0);
+            this.tweens.add({
+                targets: z,
+                y: z.y - 130,
+                alpha: { from: 0.65, to: 0 },
+                duration: 3200 + PhaserMath.Between(0, 1800),
+                ease: 'Sine.easeOut',
+                onComplete: () => z.destroy(),
+            });
+        };
+        this.time.addEvent({ delay: 900, callback: spawnZ, loop: true });
+        spawnZ();
+    }
+
+    // ── Netflix: scanlines + giant N glow + autoplay bar ───────────────────────
+    _drawNetflixBg (width) {
+        // Scanlines
+        const sl = this.add.graphics().setDepth(1).setAlpha(0.12);
+        sl.fillStyle(0x000000, 1);
+        for (let y = 0; y < 480; y += 4) sl.fillRect(0, y, width, 2);
+
+        // Giant N in background
+        const nLetter = this.add.text(width / 2, 210, 'N', {
+            fontSize: '260px',
+            color: '#e50914',
+            fontFamily: 'Arial Black',
+        }).setOrigin(0.5).setDepth(0).setAlpha(0.06);
+
+        this.tweens.add({
+            targets: nLetter,
+            alpha: { from: 0.04, to: 0.12 },
+            duration: 1400,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+        });
+
+        // Autoplay progress bar at battle divider
+        this.add.rectangle(width / 2, 476, width, 6, 0x7f1d1d, 0.9).setDepth(3);
+        const progFill = this.add.rectangle(0, 476, 4, 6, 0xe50914, 1).setOrigin(0, 0.5).setDepth(4);
+        this.tweens.add({
+            targets: progFill,
+            width: width,
+            duration: 9000,
+            ease: 'Linear',
+            repeat: -1,
+        });
+
+        // Occasional screen flicker
+        const flickerOverlay = this.add.rectangle(width / 2, 240, width, 480, 0xff0000, 0).setDepth(5);
+        const flicker = () => {
+            if (!this.scene.isActive('BattleScene')) return;
+            this.tweens.add({
+                targets: flickerOverlay,
+                alpha: { from: 0.08, to: 0 },
+                duration: 80,
+                ease: 'Linear',
+            });
+        };
+        this.time.addEvent({ delay: PhaserMath.Between(3000, 6000), callback: flicker, loop: true });
+    }
+
+    // ── Retard: animated clock + flying alarm clocks ───────────────────────────
+    _drawRetardBg (width) {
+        const cx = width / 2;
+        const cy = 210;
+        const R = 160;
+
+        // Static clock face
+        const clockG = this.add.graphics().setDepth(0).setAlpha(0.1);
+        clockG.lineStyle(4, 0xb45309, 1);
+        clockG.strokeCircle(cx, cy, R);
+        for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+            const isMajor = i % 3 === 0;
+            const r1 = R;
+            const r2 = isMajor ? R - 22 : R - 12;
+            clockG.lineBetween(
+                cx + Math.cos(a) * r2, cy + Math.sin(a) * r2,
+                cx + Math.cos(a) * r1, cy + Math.sin(a) * r1,
+            );
+        }
+
+        // Animated hands
+        const handG = this.add.graphics().setDepth(1).setAlpha(0.18);
+        let minuteAngle = -Math.PI / 2;
+        let hourAngle   = -Math.PI / 2 + Math.PI / 6;
+        const drawHands = () => {
+            if (!this.scene.isActive('BattleScene')) return;
+            handG.clear();
+            handG.lineStyle(3, 0xb45309, 1);
+            handG.lineBetween(cx, cy, cx + Math.cos(minuteAngle) * (R - 20), cy + Math.sin(minuteAngle) * (R - 20));
+            handG.lineStyle(5, 0xf59e0b, 1);
+            handG.lineBetween(cx, cy, cx + Math.cos(hourAngle) * (R - 50), cy + Math.sin(hourAngle) * (R - 50));
+            minuteAngle += 0.018;
+            hourAngle   += 0.0015;
+        };
+        this.time.addEvent({ delay: 40, callback: drawHands, loop: true });
+        drawHands();
+
+        // Floating alarm clocks
+        const spawnAlarm = () => {
+            if (!this.scene.isActive('BattleScene')) return;
+            const x = PhaserMath.Between(60, width - 60);
+            const alarm = this.add.text(x, 400, '⏰', { fontSize: '18px' }).setDepth(2).setAlpha(0);
+            this.tweens.add({
+                targets: alarm,
+                y: alarm.y - 100,
+                alpha: { from: 0.75, to: 0 },
+                duration: 2200,
+                ease: 'Sine.easeOut',
+                onComplete: () => alarm.destroy(),
+            });
+        };
+        this.time.addEvent({ delay: 1600, callback: spawnAlarm, loop: true });
     }
 
     _createCharacterDisplay (x, y, entity, isEnemy) {
@@ -97,18 +232,17 @@ export class BattleScene extends Scene
             this._drawBigPlayerSprite(g, this.character.color);
         }
 
-        // Shadow
-        const shadow = this.add.ellipse(0, 30, 80, 20, 0x000000, 0.3);
+        const shadow = this.add.ellipse(0, 35, 110, 26, 0x000000, 0.3);
         container.add(shadow);
         container.add(g);
 
         this.tweens.add({
             targets: container,
-            y: y - 8,
-            duration: 1500,
+            y: y - 10,
+            duration: 1600,
             yoyo: true,
             repeat: -1,
-            ease: 'Sine.easeInOut'
+            ease: 'Sine.easeInOut',
         });
 
         return container;
@@ -116,49 +250,50 @@ export class BattleScene extends Scene
 
     _drawBigPlayerSprite (g, _color) {
         const { data, palette } = getPlayerSprite(this.characterId);
-        const scale = 4;
-        drawPixelSprite(g, data, palette, scale, -8 * scale, -16 * scale);
+        drawPixelSprite(g, data, palette, SPRITE_SCALE, -8 * SPRITE_SCALE, -16 * SPRITE_SCALE);
     }
 
     _drawBigEnemySprite (g, _color) {
         const { data, palette } = getEnemySprite(this.enemyId);
-        const scale = 4;
-        drawPixelSprite(g, data, palette, scale, -8 * scale, -16 * scale);
+        drawPixelSprite(g, data, palette, SPRITE_SCALE, -8 * SPRITE_SCALE, -16 * SPRITE_SCALE);
     }
 
-    _createHPBar (x, y, hp, maxHp, label, color) {
-        const container = this.add.container(x, y);
+    _createHPBar (cx, y, hp, maxHp, label, color) {
+        const BAR_W = 210;
+        const container = this.add.container(cx, y).setDepth(20);
 
-        const nameBgW = Math.min(label.length * 8 + 24, 300);
-        const nameBg = this.add.rectangle(nameBgW / 2 - 4, 8, nameBgW, 22, 0x000000, 0.75);
+        const nameBgW = Math.min(label.length * 7 + 20, 240);
+        const nameBg = this.add.rectangle(0, -8, nameBgW, 20, 0x000000, 0.82);
+        const nameTxt = this.add.text(0, -16, label, {
+            fontSize: '12px', color: '#e5e7eb', fontFamily: 'Courier New',
+        }).setOrigin(0.5, 0);
 
-        const nameTxt = this.add.text(0, 0, label, {
-            fontSize: '13px', color: '#e5e7eb', fontFamily: 'Courier New'
-        });
-        const hpTxt = this.add.text(0, 18, `HP: ${hp} / ${maxHp}`, {
-            fontSize: '11px', color: '#9ca3af', fontFamily: 'Courier New'
-        });
-        const trackBg = this.add.rectangle(90, 12, 180, 12, 0x1f2937);
-        const fill = this.add.rectangle(
-            90 - 90 + (hp / maxHp) * 90, 12,
-            Math.max(2, (hp / maxHp) * 180), 10, color
-        );
+        const trackBg = this.add.rectangle(0, 6, BAR_W, 12, 0x1f2937);
+        const fillW = Math.max(2, (hp / maxHp) * BAR_W);
+        const fill = this.add.rectangle(-BAR_W / 2 + fillW / 2, 6, fillW, 10, color);
 
-        container.add([nameBg, nameTxt, hpTxt, trackBg, fill]);
+        const hpTxt = this.add.text(0, 14, `${hp} / ${maxHp}`, {
+            fontSize: '10px', color: '#9ca3af', fontFamily: 'Courier New',
+        }).setOrigin(0.5, 0);
+
+        container.add([nameBg, nameTxt, trackBg, fill, hpTxt]);
         container._hpTxt = hpTxt;
-        container._fill = fill;
+        container._fill  = fill;
         container._maxHp = maxHp;
         container._color = color;
         container._label = nameTxt;
+        container._barW  = BAR_W;
 
         return container;
     }
 
     _updateHPBar (bar, hp, maxHp) {
-        const ratio = Math.max(0, hp / maxHp);
-        bar._hpTxt.setText(`HP: ${Math.max(0, hp)} / ${maxHp}`);
-        bar._fill.width = Math.max(2, ratio * 180);
-        bar._fill.x = 90 - 90 + ratio * 90;
+        const ratio  = Math.max(0, hp / maxHp);
+        const barW   = bar._barW || 210;
+        const newW   = Math.max(2, ratio * barW);
+        bar._hpTxt.setText(`${Math.max(0, hp)} / ${maxHp}`);
+        bar._fill.width = newW;
+        bar._fill.x     = -barW / 2 + newW / 2;
         const color = ratio > 0.5 ? bar._color : ratio > 0.25 ? 0xf59e0b : 0xef4444;
         bar._fill.setFillStyle(color);
     }
@@ -204,9 +339,7 @@ export class BattleScene extends Scene
         this._menuButtons = buttons;
     }
 
-    _log (text) {
-        this.battleLog.setText(text);
-    }
+    _log (text) { this.battleLog.setText(text); }
 
     _lockActions () {
         this.actionLocked = true;
@@ -224,22 +357,14 @@ export class BattleScene extends Scene
         this._lockActions();
         this.isPlayerTurn = false;
 
-        const typeMult = getTypeMultiplier(skill.type, this.enemy.type);
+        const typeMult  = getTypeMultiplier(skill.type, this.enemy.type);
         const exposeMult = this.exposedBonus ? 1.2 : 1;
-        const rawDmg = Math.round(skill.damage * typeMult * exposeMult * this.boostMult);
+        const rawDmg    = Math.round(skill.damage * typeMult * exposeMult * this.boostMult);
         this.exposedBonus = false;
 
-        // Handle special effects
-        if (skill.heal) {
-            this.playerHP = Math.min(this.playerMaxHP, this.playerHP + skill.heal);
-            this._updateHPBar(this.playerHPBar, this.playerHP, this.playerMaxHP);
-        }
-        if (skill.expose) {
-            this.exposedBonus = true;
-        }
-        if (skill.boost) {
-            this.boostMult = 1.3;
-        }
+        if (skill.heal)   { this.playerHP = Math.min(this.playerMaxHP, this.playerHP + skill.heal); this._updateHPBar(this.playerHPBar, this.playerHP, this.playerMaxHP); }
+        if (skill.expose) { this.exposedBonus = true; }
+        if (skill.boost)  { this.boostMult = 1.3; }
 
         this.enemyCurrentHP -= rawDmg;
         this._updateHPBar(this.enemyHPBar, this.enemyCurrentHP, this.enemy.maxHp);
@@ -247,46 +372,24 @@ export class BattleScene extends Scene
         const effLabel = typeMult >= 1.5 ? ' 🔥 SUPER EFFICACE !' : typeMult <= 0.5 ? ' 😴 Peu efficace...' : '';
         this._log(`${skill.emoji} ${skill.name} inflige ${rawDmg} dégâts !${effLabel}`);
 
-        // Flash enemy
-        this.tweens.add({
-            targets: this.enemyGroup,
-            alpha: { from: 1, to: 0.2 },
-            duration: 80,
-            yoyo: true,
-            repeat: 2
-        });
+        this.tweens.add({ targets: this.enemyGroup, alpha: { from: 1, to: 0.2 }, duration: 80, yoyo: true, repeat: 2 });
 
-        if (this.enemyCurrentHP <= 0) {
-            this.time.delayedCall(600, () => this._victory());
-            return;
-        }
-
+        if (this.enemyCurrentHP <= 0) { this.time.delayedCall(600, () => this._victory()); return; }
         this.time.delayedCall(900, () => this._enemyAttack());
     }
 
     _enemyAttack () {
         const attacks = this.enemy.attacks;
-        const attack = attacks[PhaserMath.Between(0, attacks.length - 1)];
-        const dmg = attack.damage + Math.round(Math.random() * 3);
+        const attack  = attacks[PhaserMath.Between(0, attacks.length - 1)];
+        const dmg     = attack.damage + Math.round(Math.random() * 3);
 
         this.playerHP -= dmg;
         this._updateHPBar(this.playerHPBar, this.playerHP, this.playerMaxHP);
         this._log(`${this.enemy.name} utilise ${attack.name} ! ${dmg} dégâts.`);
 
-        // Flash player
-        this.tweens.add({
-            targets: this.playerGroup,
-            alpha: { from: 1, to: 0.2 },
-            duration: 80,
-            yoyo: true,
-            repeat: 2
-        });
+        this.tweens.add({ targets: this.playerGroup, alpha: { from: 1, to: 0.2 }, duration: 80, yoyo: true, repeat: 2 });
 
-        if (this.playerHP <= 0) {
-            this.time.delayedCall(600, () => this._defeat());
-            return;
-        }
-
+        if (this.playerHP <= 0) { this.time.delayedCall(600, () => this._defeat()); return; }
         this.time.delayedCall(700, () => this._unlockActions());
     }
 
@@ -309,8 +412,8 @@ export class BattleScene extends Scene
             wordWrap: { width: 500 }
         }).setOrigin(0.5).setAlpha(0.8).setDepth(201);
 
-        this.tweens.add({ targets: overlay, alpha: 0.7, duration: 400, delay: 0 });
-        this.tweens.add({ targets: txt, alpha: 1, duration: 400, delay: 200 });
+        this.tweens.add({ targets: overlay, alpha: 0.7, duration: 400 });
+        this.tweens.add({ targets: txt,     alpha: 1,   duration: 400, delay: 200 });
 
         this.time.delayedCall(2500, () => {
             this.registry.set('battleResult', 'victory');
@@ -326,21 +429,15 @@ export class BattleScene extends Scene
         }).setOrigin(0.5).setAlpha(0).setDepth(201);
 
         this.tweens.add({ targets: overlay, alpha: 0.8, duration: 400 });
-        this.tweens.add({ targets: txt, alpha: 1, duration: 400, delay: 200 });
+        this.tweens.add({ targets: txt,     alpha: 1,   duration: 400, delay: 200 });
 
-        this.time.delayedCall(2500, () => {
-            PlayerState.reset();
-            this.scene.start('IntroScene');
-        });
+        this.time.delayedCall(2500, () => { PlayerState.reset(); this.scene.start('IntroScene'); });
     }
 
     _flee () {
         PlayerState.setHP(this.playerHP);
         PlayerState.save();
         this._log('Tu fuis... La flemme gagne ce soir.');
-        this.time.delayedCall(1000, () => {
-            this.scene.start('WorldScene', { characterId: this.characterId });
-        });
+        this.time.delayedCall(1000, () => { this.scene.start('WorldScene', { characterId: this.characterId }); });
     }
 }
-

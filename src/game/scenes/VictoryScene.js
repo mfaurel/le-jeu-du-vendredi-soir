@@ -175,7 +175,7 @@ export class VictoryScene extends Scene {
         this._next(() => this._act3_firstclass(), 5500);
     }
 
-    // ── ACT 3 : First Class Trouble ───────────────────────────────────────
+    // ── ACT 3 : On va pouvoir jouer à First Class Trouble ───────────────────────────────────────
 
     _act3_firstclass() {
         const { W, H } = this;
