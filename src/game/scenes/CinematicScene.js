@@ -207,56 +207,108 @@ export class CinematicScene extends Scene {
     _act2_reponses() {
         const { W, H } = this;
 
-        this.add.rectangle(W/2, H/2, W, H, 0x0d1117);
+        // ── Background
+        this.add.rectangle(W/2, H/2, W, H, 0x313338);
 
-        // Interface Discord stylisée
-        const sidebar = this.add.rectangle(W * 0.12, H/2, W * 0.22, H, 0x1e2124).setDepth(1);
-        const main    = this.add.rectangle(W * 0.61, H/2, W * 0.74, H, 0x36393f).setDepth(1);
+        // ── Server icon column (left strip)
+        const COL_W = 68;
+        this.add.rectangle(COL_W/2, H/2, COL_W, H, 0x1e1f22).setDepth(1);
+        this._discordLogo(COL_W/2, 40, 22);
+        const sep = this.add.graphics().setDepth(2);
+        sep.lineStyle(1, 0x3f4147, 0.8);
+        sep.lineBetween(14, 72, COL_W - 14, 72);
+        this.add.text(COL_W/2, 100, '🎮', { fontSize: '26px' }).setOrigin(0.5).setDepth(2);
 
-        // Header du channel
-        this.add.rectangle(W * 0.61, 28, W * 0.74, 54, 0x2f3136).setDepth(2);
-        this.add.text(W * 0.26, 28, '# soirée-vendredi', {
-            fontSize: '14px', color: '#8e9297', fontFamily: 'Courier New'
+        // ── Channel sidebar
+        const SIDE_X = COL_W;
+        const SIDE_W = 210;
+        this.add.rectangle(SIDE_X + SIDE_W/2, H/2, SIDE_W, H, 0x2b2d31).setDepth(1);
+
+        // Server name header
+        this.add.rectangle(SIDE_X + SIDE_W/2, 27, SIDE_W, 52, 0x232428).setDepth(2);
+        this.add.text(SIDE_X + 14, 27, 'Vendredi Soir 🎲', {
+            fontSize: '13px', color: '#f2f3f5', fontFamily: 'Courier New', fontStyle: 'bold'
         }).setOrigin(0, 0.5).setDepth(3);
 
-        // Sidebar : serveur
-        this._discordLogo(W * 0.07, 45, 20);
-        this.add.text(W * 0.07, 90, '🎮', { fontSize: '22px' }).setOrigin(0.5).setDepth(2);
-        ['# général', '# soirée-jeux', '🔊 vocal'].forEach((ch, i) => {
+        // Divider under header
+        const hdg = this.add.graphics().setDepth(2);
+        hdg.lineStyle(1, 0x1f2023, 1);
+        hdg.lineBetween(SIDE_X, 52, SIDE_X + SIDE_W, 52);
+
+        // Category label
+        this.add.text(SIDE_X + 14, 78, 'CANAUX TEXTUELS', {
+            fontSize: '10px', color: '#8d9299', fontFamily: 'Courier New'
+        }).setOrigin(0, 0.5).setDepth(3);
+
+        // Channel list
+        const channels = ['# général', '# soirée-jeux', '🔊 vocal'];
+        channels.forEach((ch, i) => {
+            const chY = 105 + i * 32;
             const active = i === 1;
-            if (active) this.add.rectangle(W*0.22, 150 + i*28, W*0.2, 24, 0x40444a).setDepth(2);
-            this.add.text(W * 0.13, 150 + i*28, ch, {
-                fontSize: '12px', color: active ? '#dcddde' : '#8e9297', fontFamily: 'Courier New'
+            if (active) {
+                this.add.rectangle(SIDE_X + SIDE_W/2, chY, SIDE_W - 6, 28, 0x404249, 1).setDepth(2);
+                // Active left accent bar
+                this.add.rectangle(SIDE_X + 1, chY, 4, 16, 0xffffff, 1).setDepth(3);
+            }
+            this.add.text(SIDE_X + 18, chY, ch, {
+                fontSize: '13px',
+                color: active ? '#f2f3f5' : '#8d9299',
+                fontFamily: 'Courier New',
             }).setOrigin(0, 0.5).setDepth(3);
         });
 
+        // ── Main content area
+        const MAIN_X = SIDE_X + SIDE_W;
+        const MAIN_W = W - MAIN_X;
+
+        // Channel header
+        this.add.rectangle(MAIN_X + MAIN_W/2, 27, MAIN_W, 52, 0x313338).setDepth(2);
+        const chg = this.add.graphics().setDepth(2);
+        chg.lineStyle(1, 0x3f4147, 0.8);
+        chg.lineBetween(MAIN_X, 52, W, 52);
+        this.add.text(MAIN_X + 18, 27, '# soirée-vendredi', {
+            fontSize: '15px', color: '#f2f3f5', fontFamily: 'Courier New', fontStyle: 'bold'
+        }).setOrigin(0, 0.5).setDepth(3);
+
         this._caption('Les réponses arrivent...');
 
-        // Messages dans le channel
+        // ── Messages
         const messages = [
-            { delay: 500,  text: 'Deus : Je suis là ! 🎮',           color: '#43b581' },
-            { delay: 1200, text: 'Claude : Ouais, on joue quoi ?',     color: '#7289da' },
-            { delay: 2000, text: 'Fatmike : Bof... j\'suis crevé 😴',   color: '#faa61a' },
-            { delay: 2800, text: 'MKz : ...',                       color: '#8e9297' },
-            { delay: 3500, text: 'Tsunaze : (pas de réponse)',           color: '#4f545c', italic: true },
+            { delay: 500,  name: 'Deus',    text: 'Je suis là ! 🎮',       color: 0x43b581, nameColor: '#43b581' },
+            { delay: 1300, name: 'Claude',  text: 'Ouais, on joue quoi ?',  color: 0x7289da, nameColor: '#7289da' },
+            { delay: 2100, name: 'Fatmike', text: "Bof... j'suis crevé 😴", color: 0xfaa61a, nameColor: '#faa61a' },
+            { delay: 2900, name: 'MKz',     text: '...',                    color: 0x8e9297, nameColor: '#8e9297' },
+            { delay: 3700, name: 'Tsunaze', text: '(pas de réponse)',        color: 0x4f545c, nameColor: '#5c5f66', italic: true },
         ];
 
-        messages.forEach(({ delay, text, color, italic }) => {
+        messages.forEach(({ delay, name, text, color, nameColor, italic }, i) => {
             this.time.delayedCall(delay, () => {
-                const msgY = 90 + messages.indexOf(messages.find(m => m.delay === delay)) * 58 + 55;
-                const msgContainer = this.add.container(W * 0.26, msgY).setAlpha(0).setDepth(4);
-                const bg = this.add.rectangle(W*0.27, 0, W * 0.65, 46, 0x2f3136);
-                const dot = this.add.circle(-10, 0, 14, parseInt(color.replace('#',''), 16) || 0x7289da);
-                const t = this.add.text(12, 0, text, {
-                    fontSize: '13px', color, fontFamily: 'Courier New',
-                    fontStyle: italic ? 'italic' : 'normal'
+                const msgY = 72 + i * 64;
+                const row = this.add.container(MAIN_X, msgY).setAlpha(0).setDepth(4);
+
+                // Avatar circle + initial
+                const avatar = this.add.circle(34, 0, 19, color);
+                const initial = this.add.text(34, 0, name[0].toUpperCase(), {
+                    fontSize: '14px', color: '#ffffff', fontFamily: 'Courier New', fontStyle: 'bold'
+                }).setOrigin(0.5);
+
+                // Username
+                const uname = this.add.text(62, -12, name, {
+                    fontSize: '14px', color: nameColor, fontFamily: 'Courier New', fontStyle: 'bold'
                 }).setOrigin(0, 0.5);
-                msgContainer.add([bg, dot, t]);
-                this.tweens.add({ targets: msgContainer, alpha: 1, x: W * 0.28, duration: 300, ease: 'Power1' });
+
+                // Message text
+                const msg = this.add.text(62, 10, text, {
+                    fontSize: '14px', color: '#dcddde', fontFamily: 'Courier New',
+                    fontStyle: italic ? 'italic' : 'normal',
+                }).setOrigin(0, 0.5);
+
+                row.add([avatar, initial, uname, msg]);
+                this.tweens.add({ targets: row, alpha: 1, duration: 300, ease: 'Power1' });
             });
         });
 
-        this._next(() => this._act3_quete(), 5500);
+        this._next(() => this._act3_quete(), 5800);
     }
 
     // ── ACT 3 : La quête commence ─────────────────────────────────────────
