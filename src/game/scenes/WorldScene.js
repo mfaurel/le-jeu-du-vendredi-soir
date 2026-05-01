@@ -453,7 +453,7 @@ export class WorldScene extends Scene {
             const { x, y } = isoToScreenH(enemy.position.col, enemy.position.row);
             const g = this.add.graphics();
             this._drawEnemySprite(g, enemy.id);
-            g.setPosition(x, y - 16).setDepth(y);
+            g.setPosition(x, y + TILE_H / 2 - 8).setDepth(y);
 
             const label = this.add.text(x, y - 70, enemy.name, {
                 fontSize: '9px', color: '#ff6b6b', fontFamily: 'Courier New',
@@ -478,14 +478,14 @@ export class WorldScene extends Scene {
             const { x, y } = isoToScreenH(npc.position.col, npc.position.row);
             const g = this.add.graphics();
             this._drawNPCSprite(g, npc.color);
-            g.setPosition(x, y - 16).setDepth(y);
+            g.setPosition(x, y + TILE_H / 2 - 8).setDepth(y);
 
             const label = this.add.text(x, y - 70, npc.name, {
                 fontSize: '9px', color: '#a8dadc', fontFamily: 'Courier New',
                 stroke: '#000', strokeThickness: 2
             }).setOrigin(0.5).setDepth(y + 1).setVisible(false);
 
-            this.npcList.push({ npc, sprite: g, label, col: npc.position.col, row: npc.position.row });
+            this.npcList.push({ npc, sprite: g, label, col: npc.position.col, row: npc.position.row, wasNear: false });
         });
     }
 
@@ -505,7 +505,7 @@ export class WorldScene extends Scene {
 
         this.playerSprite = this.add.graphics();
         this._drawPlayerSprite(this.playerSprite);
-        this.playerSprite.setPosition(x, y - 16).setDepth(500);
+        this.playerSprite.setPosition(x, y + TILE_H / 2 - 8).setDepth(500);
 
         // Shadow under player
         this.playerShadow = this.add.ellipse(x, y + TILE_H / 2 - 4, 36, 12, 0x000000, 0.25).setDepth(499);
@@ -638,7 +638,7 @@ export class WorldScene extends Scene {
         this.tweens.add({
             targets: this.playerSprite,
             x,
-            y: y - 16,
+            y: y + TILE_H / 2 - 8,
             duration: 110,
             ease: 'Linear',
             onComplete: () => {
@@ -646,6 +646,7 @@ export class WorldScene extends Scene {
                 this.playerShadow.setPosition(x, y + TILE_H / 2 - 4);
                 this._updateMovementHighlights();
                 this._updateLabelVisibility();
+                this._checkProximityWhispers();
                 this._checkTileInteraction();
             }
         });
@@ -674,6 +675,47 @@ export class WorldScene extends Scene {
                 return;
             }
         }
+    }
+
+    _checkProximityWhispers() {
+        for (const npcData of this.npcList) {
+            const dist = Math.abs(npcData.col - this.playerCol) + Math.abs(npcData.row - this.playerRow);
+            const isNear = dist <= 2;
+            if (isNear && !npcData.wasNear) this._showWhisper(npcData);
+            npcData.wasNear = isNear;
+        }
+    }
+
+    _showWhisper(npcData) {
+        const { x, y } = isoToScreenH(npcData.col, npcData.row);
+        const bubble = this.add.text(x, y - 55, `💬 ${npcData.npc.whisper}`, {
+            fontSize: '10px',
+            color: '#e0f7f4',
+            fontFamily: 'Courier New',
+            stroke: '#0a1a18',
+            strokeThickness: 3,
+            backgroundColor: '#0d2e2a',
+            padding: { x: 6, y: 3 }
+        }).setOrigin(0.5).setDepth(1000).setAlpha(0);
+
+        this.tweens.add({
+            targets: bubble,
+            alpha: 1,
+            y: y - 68,
+            duration: 250,
+            ease: 'Sine.easeOut',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: bubble,
+                    alpha: 0,
+                    y: y - 82,
+                    duration: 500,
+                    delay: 1800,
+                    ease: 'Sine.easeIn',
+                    onComplete: () => bubble.destroy()
+                });
+            }
+        });
     }
 
     _onInteract() {
