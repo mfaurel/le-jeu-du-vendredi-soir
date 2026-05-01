@@ -11,7 +11,8 @@ const TILE_H  = 42;
 const COLS    = 16;
 const ROWS    = 12;
 const ORIGIN_X = 424;
-const ORIGIN_Y = 140;
+const ORIGIN_Y = 200;
+const STEP_H  = 22;
 
 function isoToScreen(col, row) {
     return {
@@ -21,8 +22,6 @@ function isoToScreen(col, row) {
 }
 
 // 1=wall, 2=forest, 3=dungeon, 4=taverne, 5=start, 6=finish
-// Path goes left→right on screen: alternating col++ and row-- produces horizontal iso movement.
-// Staircase: (0,10)→(1,10)→(1,9)→(2,9)→...→(9,1)→(10,1)→(10,0)→(11,0)→(12,0)→(13,0)→(14,0)
 const MAP = [
     [1,1,1,1,1,1,1,1,1,1,4,4,4,4,6,1],
     [1,1,1,1,1,1,1,1,1,3,4,1,1,1,1,1],
@@ -38,14 +37,45 @@ const MAP = [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
 ];
 
-// Zone colors
+// Elevation per walkable tile: 0=ground … 4=top landing
+// Path heights: h0=(0-2,8-10) → h1=(3-5,6-8) → h2=(5-7,3-6) → h3=(8-10,1-3) → h4=(10-14,0-1)
+const HEIGHT_MAP = [
+    [0,0,0,0,0,0,0,0,0,0,4,4,4,4,4,0],
+    [0,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,2,3,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+];
+
+function getH(col, row) {
+    if (col < 0 || row < 0 || col >= COLS || row >= ROWS) return 0;
+    if (MAP[row][col] === 1) return 0;
+    return HEIGHT_MAP[row][col];
+}
+
+function isoToScreenH(col, row) {
+    const h = getH(col, row);
+    return {
+        x: ORIGIN_X + (col - row) * (TILE_W / 2),
+        y: ORIGIN_Y + (col + row) * (TILE_H / 2) - h * STEP_H
+    };
+}
+
+// Zone colors (rL = left riser face, rR = right riser face)
 const ZONE = {
-    floor: { base: 0x1e3a2f, hi: 0x2d5c45, lo: 0x0d1e18, edge: 0x14291f },
-    forest: { base: 0x1a3d1a, hi: 0x2a5c2a, lo: 0x0d200d, edge: 0x122612 },
-    dungeon: { base: 0x1e2240, hi: 0x2d3360, lo: 0x0e1128, edge: 0x141830 },
-    taverne: { base: 0x3d2010, hi: 0x5c3218, lo: 0x1e0f08, edge: 0x2a1508 },
-    start:   { base: 0x0d3320, hi: 0x0f4f30, lo: 0x071a10, edge: 0x0a2718 },
-    finish:  { base: 0x2d0f5c, hi: 0x421880, lo: 0x170830, edge: 0x1f0a3d },
+    floor:   { base: 0x1e3a2f, hi: 0x2d5c45, lo: 0x0d1e18, edge: 0x14291f, rL: 0x0d1e18, rR: 0x14291f },
+    forest:  { base: 0x1a3d1a, hi: 0x2a5c2a, lo: 0x0d200d, edge: 0x122612, rL: 0x0d200d, rR: 0x122612 },
+    dungeon: { base: 0x1e2240, hi: 0x2d3360, lo: 0x0e1128, edge: 0x141830, rL: 0x0e1128, rR: 0x141830 },
+    taverne: { base: 0x3d2010, hi: 0x5c3218, lo: 0x1e0f08, edge: 0x2a1508, rL: 0x1e0f08, rR: 0x2a1508 },
+    start:   { base: 0x0d3320, hi: 0x0f4f30, lo: 0x071a10, edge: 0x0a2718, rL: 0x071a10, rR: 0x0a2718 },
+    finish:  { base: 0x2d0f5c, hi: 0x421880, lo: 0x170830, edge: 0x1f0a3d, rL: 0x170830, rR: 0x1f0a3d },
 };
 
 const WALL_TOP  = 0x2d3561;
@@ -113,13 +143,16 @@ export class WorldScene extends Scene {
 
     _buildTilemap() {
         const g = this.add.graphics();
+        const hw = TILE_W / 2;
+        const hh = TILE_H / 2;
 
         for (let row = 0; row < ROWS; row++) {
             for (let col = 0; col < COLS; col++) {
                 const type = MAP[row][col];
-                const { x, y } = isoToScreen(col, row);
-                const hw = TILE_W / 2;
-                const hh = TILE_H / 2;
+                // base position (no height) — used for riser bottoms and walls
+                const { x, y: baseY } = isoToScreen(col, row);
+                const h = type === 1 ? 0 : getH(col, row);
+                const y = baseY - h * STEP_H;
 
                 if (type === 1) {
                     // Top face
@@ -149,7 +182,44 @@ export class WorldScene extends Scene {
                 } else {
                     const z = tileZone(type);
 
-                    // Base diamond
+                    // Draw riser faces BEFORE the floor tile (painter's order)
+                    if (h > 0) {
+                        // Left riser faces the +row direction (south-west face)
+                        const hL = getH(col, row + 1);
+                        if (hL < h) {
+                            const yTop = baseY - h * STEP_H;
+                            const yBot = baseY - hL * STEP_H;
+                            g.fillStyle(z.rL);
+                            g.fillPoints([
+                                { x: x - hw, y: yTop + hh },
+                                { x,         y: yTop + TILE_H },
+                                { x,         y: yBot + TILE_H },
+                                { x: x - hw, y: yBot + hh }
+                            ], true);
+                            // Step-edge highlight
+                            g.lineStyle(1, z.hi, 0.55);
+                            g.lineBetween(x - hw, yTop + hh, x, yTop + TILE_H);
+                        }
+
+                        // Right riser faces the +col direction (south-east face)
+                        const hR = getH(col + 1, row);
+                        if (hR < h) {
+                            const yTop = baseY - h * STEP_H;
+                            const yBot = baseY - hR * STEP_H;
+                            g.fillStyle(z.rR);
+                            g.fillPoints([
+                                { x: x + hw, y: yTop + hh },
+                                { x,         y: yTop + TILE_H },
+                                { x,         y: yBot + TILE_H },
+                                { x: x + hw, y: yBot + hh }
+                            ], true);
+                            // Step-edge highlight
+                            g.lineStyle(1, z.hi, 0.35);
+                            g.lineBetween(x + hw, yTop + hh, x, yTop + TILE_H);
+                        }
+                    }
+
+                    // Floor diamond
                     g.fillStyle(z.base);
                     g.fillPoints([
                         { x, y },
@@ -174,7 +244,7 @@ export class WorldScene extends Scene {
                     g.lineTo(x, y + TILE_H);
                     g.strokePath();
 
-                    // Subtle texture dots on forest/dungeon
+                    // Subtle texture on forest/dungeon
                     if (type === 2 || type === 3) {
                         g.fillStyle(z.hi, 0.07);
                         g.fillRect(x - 6, y + hh - 2, 4, 3);
@@ -186,7 +256,7 @@ export class WorldScene extends Scene {
         }
 
         // Start tile pulse glow
-        const { x: sx, y: sy } = isoToScreen(0, 10);
+        const { x: sx, y: sy } = isoToScreenH(0, 10);
         const startGlow = this.add.circle(sx, sy + TILE_H / 2, 24, 0x00ff88, 0.18);
         this.tweens.add({ targets: startGlow, alpha: 0.06, scaleX: 1.4, scaleY: 1.4, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
@@ -198,7 +268,7 @@ export class WorldScene extends Scene {
     }
 
     _buildPortal() {
-        const { x: fx, y: fy } = isoToScreen(14, 0);
+        const { x: fx, y: fy } = isoToScreenH(14, 0);
         const cy = fy + TILE_H / 2;
 
         // Pulsing rings
@@ -355,12 +425,12 @@ export class WorldScene extends Scene {
         const forestTiles = [];
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
-                if (MAP[r][c] === 2) forestTiles.push(isoToScreen(c, r));
+                if (MAP[r][c] === 2) forestTiles.push(isoToScreenH(c, r));
             }
         }
         forestTiles.forEach(({ x, y }, i) => {
             if (i % 3 !== 0) return;
-            const mist = this.add.circle(x + (Math.random() - 0.5) * 20, y + TILE_H / 2, 8 + Math.random() * 6, 0xaaffaa, 0.04).setDepth(y + 5);
+            const mist = this.add.circle(x + (Math.random() - 0.5) * 20, y + TILE_H / 2, 8 + Math.random() * 6, 0xaaffaa, 0.04).setDepth(y + 100);
             this.tweens.add({
                 targets: mist,
                 x: `+=${(Math.random() - 0.5) * 30}`,
@@ -380,7 +450,7 @@ export class WorldScene extends Scene {
         this.enemySprites = [];
         ENEMIES.forEach((enemy, i) => {
             if (PlayerState.isEnemyDefeated(enemy.id)) return;
-            const { x, y } = isoToScreen(enemy.position.col, enemy.position.row);
+            const { x, y } = isoToScreenH(enemy.position.col, enemy.position.row);
             const g = this.add.graphics();
             this._drawEnemySprite(g, enemy.id);
             g.setPosition(x, y - 16).setDepth(y);
@@ -405,7 +475,7 @@ export class WorldScene extends Scene {
     _spawnNPCs() {
         this.npcList = [];
         NPC_DIALOGUES.forEach(npc => {
-            const { x, y } = isoToScreen(npc.position.col, npc.position.row);
+            const { x, y } = isoToScreenH(npc.position.col, npc.position.row);
             const g = this.add.graphics();
             this._drawNPCSprite(g, npc.color);
             g.setPosition(x, y - 16).setDepth(y);
@@ -431,7 +501,7 @@ export class WorldScene extends Scene {
             this.playerCol = 0;
             this.playerRow = 10;
         }
-        const { x, y } = isoToScreen(this.playerCol, this.playerRow);
+        const { x, y } = isoToScreenH(this.playerCol, this.playerRow);
 
         this.playerSprite = this.add.graphics();
         this._drawPlayerSprite(this.playerSprite);
@@ -495,7 +565,7 @@ export class WorldScene extends Scene {
             if (nc < 0 || nr < 0 || nc >= COLS || nr >= ROWS) return;
             if (MAP[nr][nc] === 1) return;
 
-            const { x, y } = isoToScreen(nc, nr);
+            const { x, y } = isoToScreenH(nc, nr);
             const hw = TILE_W / 2;
             const hh = TILE_H / 2;
 
@@ -563,7 +633,7 @@ export class WorldScene extends Scene {
 
         this.playerCol = nc;
         this.playerRow = nr;
-        const { x, y } = isoToScreen(nc, nr);
+        const { x, y } = isoToScreenH(nc, nr);
 
         this.tweens.add({
             targets: this.playerSprite,
@@ -572,7 +642,7 @@ export class WorldScene extends Scene {
             duration: 110,
             ease: 'Linear',
             onComplete: () => {
-                this.playerSprite.setDepth(y);
+                this.playerSprite.setDepth(y + 500);
                 this.playerShadow.setPosition(x, y + TILE_H / 2 - 4);
                 this._updateMovementHighlights();
                 this._updateLabelVisibility();
